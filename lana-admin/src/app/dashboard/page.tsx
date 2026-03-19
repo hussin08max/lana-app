@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { AxiosError } from "axios";
-import { Plus, Eye } from "lucide-react";
+import { Plus, Eye, Search } from "lucide-react";
 
 import { axiosClient } from "../../lib/axios";
 
@@ -23,6 +23,11 @@ export default function DashboardPage() {
   const [cases, setCases] = useState<CaseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "OPEN" | "CLOSED">("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     (async () => {
@@ -46,6 +51,33 @@ export default function DashboardPage() {
     return "bg-teal-50 text-teal-700 border-teal-200";
   };
 
+  const filteredCases = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return cases.filter((c) => {
+      const status = (c.status ?? "").toUpperCase();
+      const matchesStatus = statusFilter === "ALL" ? true : status === statusFilter;
+
+      const matchesSearch =
+        q.length === 0
+          ? true
+          : (c.title ?? "").toLowerCase().includes(q) ||
+            (c.location ?? "").toLowerCase().includes(q);
+
+      return matchesStatus && matchesSearch;
+    });
+  }, [cases, searchQuery, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCases.length / itemsPerPage));
+
+  const paginatedCases = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredCases.slice(start, start + itemsPerPage);
+  }, [filteredCases, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
@@ -65,6 +97,41 @@ export default function DashboardPage() {
           <Plus size={16} />
           إنشاء حالة جديدة
         </Link>
+      </div>
+
+      {/* Controls: Search + Status filter */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div className="relative flex-1">
+          <Search
+            size={16}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+          />
+          <input
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="ابحث بالعنوان أو الموقع..."
+            className="w-full rounded-xl border border-gray-200 bg-white px-10 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+        </div>
+
+        <div className="w-full sm:w-56">
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              const v = e.target.value as "ALL" | "OPEN" | "CLOSED";
+              setStatusFilter(v);
+              setCurrentPage(1);
+            }}
+            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          >
+            <option value="ALL">الكل</option>
+            <option value="OPEN">مفتوحة</option>
+            <option value="CLOSED">مغلقة</option>
+          </select>
+        </div>
       </div>
 
       {loading ? (
@@ -92,7 +159,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {cases.map((c) => (
+                {paginatedCases.map((c) => (
                   <tr key={c.id} className="hover:bg-gray-50/50">
                     <td className="py-3 px-4 text-gray-800">{c.id}</td>
                     <td className="py-3 px-4 text-gray-800 font-medium">
@@ -128,15 +195,41 @@ export default function DashboardPage() {
                     </td>
                   </tr>
                 ))}
-                {cases.length === 0 && (
+                {paginatedCases.length === 0 && (
                   <tr>
                     <td colSpan={6} className="py-10 px-4 text-center text-gray-500">
-                      لا توجد حالات حالياً
+                      لا توجد حالات مطابقة حالياً
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between gap-4 border-t border-gray-100 px-4 py-4">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white"
+            >
+              السابق
+            </button>
+
+            <div className="text-sm text-gray-600">
+              الصفحة <span className="font-semibold text-gray-900">{currentPage}</span>{" "}
+              من <span className="font-semibold text-gray-900">{totalPages}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white"
+            >
+              التالي
+            </button>
           </div>
         </div>
       )}
