@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { AxiosError } from "axios";
 import { Plus, Eye } from "lucide-react";
 
@@ -57,14 +58,13 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => alert("قريباً: إضافة حالة جديدة")}
+        <Link
+          href="/dashboard/cases/create"
           className="inline-flex items-center gap-2 rounded-xl bg-teal-600 text-white px-4 py-2 text-sm font-semibold hover:bg-teal-700"
         >
           <Plus size={16} />
           إنشاء حالة جديدة
-        </button>
+        </Link>
       </div>
 
       {loading ? (
