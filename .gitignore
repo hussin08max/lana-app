@@ -32,3 +32,8 @@ lana_app/android/app/build/
 *.log
 *.tmp
 
+# Next.js
+.next/
+/.next/
+lana-admin/.next/
+
