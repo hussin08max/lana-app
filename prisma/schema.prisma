@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  DONOR
+  AGENT
+  ADMIN
+  NEEDY
+}
+
+enum CaseStatus {
+  OPEN
+  CLOSED
+}
+
+enum DonationStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String   @unique
+  role      UserRole
+  verified  Boolean  @default(false)
+
+  // Relations
+  createdCases  Case[]        @relation("CreatedCases")
+  donations     Donation[]
+  agentProfile  Agent?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Case {
+  id          String      @id @default(cuid())
+  title       String
+  description String
+  location    String
+  status      CaseStatus  @default(OPEN)
+  priority    Int         @default(0)
+
+  // creator of the case (could be AGENT or ADMIN)
+  createdBy   String
+  createdByUser User      @relation("CreatedCases", fields: [createdBy], references: [id])
+
+  // Relations
+  donations   Donation[]
+  updates     CaseUpdate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Donation {
+  id        String          @id @default(cuid())
+  amount    Decimal
+  status    DonationStatus  @default(PENDING)
+
+  // Relations
+  userId    String
+  user      User            @relation(fields: [userId], references: [id])
+
+  caseId    String
+  case      Case            @relation(fields: [caseId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Agent {
+  id      String @id @default(cuid())
+  area    String
+
+  // Relations
+  userId  String  @unique
+  user    User    @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CaseUpdate {
+  id        String   @id @default(cuid())
+
+  caseId    String
+  case      Case     @relation(fields: [caseId], references: [id])
+
+  images    String[] // S3/R2 URLs
+  video     String?  // S3/R2 URL
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
